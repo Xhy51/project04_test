@@ -11,10 +11,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Regex to find english words, including "foo", "foo2", "foo-bar" and "foo_bar"
-var wordRegex = regexp.MustCompile(`(?i)[a-z][a-z0-9\-_]*`)
-
 func walk(n *html.Node, page *Page, ignoreText bool) {
+	// Regex to find english words, including "foo", "foo2", "foo-bar" and "foo_bar"
+	var wordRegex = regexp.MustCompile(`(?i)[a-z][a-z0-9\-_]*`)
 	if !ignoreText {
 		// Extract words from text node
 		if n.Type == html.TextNode {

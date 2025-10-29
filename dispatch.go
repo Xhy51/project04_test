@@ -120,7 +120,7 @@ func (d *dispatcher) dispatch(url_ string) (bool, error) {
 		urls = make(chan string, UrlBufferSize)
 		d.urlsToFetch[u.Host] = urls
 		d.wg.Add(1)
-		go fetcher(&d.wg, u.Host, urls, d.responses)
+		go fetcher(&d.wg, u.Host, fetchIO{urls: urls, responses: d.responses})
 	}
 
 	d.dispatched[url_] = struct{}{}
