@@ -32,6 +32,7 @@ func (c *Crawler) Start(seedURL string) {
 	}
 
 	pages := make(chan Page, PageBufferSize)
+	quit := make(chan struct{})
 	d := newDispatcher()
 	var wg sync.WaitGroup
 
@@ -45,35 +46,41 @@ func (c *Crawler) Start(seedURL string) {
 	go func() {
 		d.wait()
 		wg.Wait()
+		quit <- struct{}{}
 		close(pages)
 	}()
 
 	dispatched := 1
-	for page := range pages {
-		visited, err := c.indexer.queryUrlVisited(page.Url)
-		if err != nil {
-			log.Printf("Failed to dedup page %s: %v\n", page.Url, err)
-			continue
-		}
-		if visited {
-			log.Printf("Skip to index page %s\n", page.Url)
-		} else if err = c.indexer.addPage(page); err != nil {
-			log.Printf("Failed to index page %s: %v\n", page.Url, err)
-		}
-
-		for _, u := range page.ContainedUrls {
-			url_, err := url.Parse(u)
-			if err != nil || url_.Host != seed.Host {
+	for {
+		select {
+		case page := <-pages:
+			visited, err := c.indexer.queryUrlVisited(page.Url)
+			if err != nil {
+				log.Printf("Failed to dedup page %s: %v\n", page.Url, err)
 				continue
 			}
-			if c.maxPages == 0 || dispatched < c.maxPages {
-				d.dispatch(u)
-				dispatched++
-				if dispatched == c.maxPages {
-					d.close()
+			if visited {
+				log.Printf("Skip to index page %s\n", page.Url)
+			} else if err = c.indexer.addPage(page); err != nil {
+				log.Printf("Failed to index page %s: %v\n", page.Url, err)
+			}
+
+			for _, u := range page.ContainedUrls {
+				url_, err := url.Parse(u)
+				if err != nil || url_.Host != seed.Host {
+					continue
+				}
+				if c.maxPages == 0 || dispatched < c.maxPages {
+					d.dispatch(u)
+					dispatched++
+					if dispatched == c.maxPages {
+						d.close()
+					}
 				}
 			}
+		case <-quit:
+			log.Printf("Crawler finished")
+			return
 		}
 	}
-	log.Printf("Crawler finished")
 }

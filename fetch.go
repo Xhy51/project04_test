@@ -15,7 +15,12 @@ const (
 	FetcherConcurrency = 32
 )
 
-func fetcher(wg *sync.WaitGroup, host string, urls <-chan string, responses chan<- Response) {
+type fetchIO struct {
+	urls      <-chan string
+	responses chan<- Response
+}
+
+func fetcher(wg *sync.WaitGroup, host string, io fetchIO) {
 	defer wg.Done()
 	ticker := time.NewTicker(Delay)
 	visited := make(map[string]struct{})
@@ -48,14 +53,14 @@ func fetcher(wg *sync.WaitGroup, host string, urls <-chan string, responses chan
 
 				log.Printf("Fetched %s: %v\n", url_, r.StatusCode)
 				if r.StatusCode == http.StatusOK {
-					responses <- Response{url_, doc}
+					io.responses <- Response{url_, doc}
 				}
 			}
 			internalGroup.Done()
 		}()
 	}
 
-	for url_ := range urls {
+	for url_ := range io.urls {
 		u, err := url.Parse(url_)
 		if err != nil || u.Host != host {
 			// Drop URLs that are invalid or with wrong hosts

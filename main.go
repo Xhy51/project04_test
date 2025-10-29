@@ -13,11 +13,9 @@ const (
 	maxPages = 0
 )
 
-var (
-	reset = flag.Bool("reset", false, "reset database for a fresh start")
-)
-
 func main() {
+	var reset = flag.Bool("reset", false, "reset database for a fresh start")
+
 	flag.Parse()
 	if *reset {
 		log.Println("A fresh start")
